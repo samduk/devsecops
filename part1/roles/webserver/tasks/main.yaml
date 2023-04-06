@@ -1,0 +1,114 @@
+---
+- name: Update apt
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+    force_apt_get: true
+
+- name: Install required packages
+  apt:
+    name: 
+      - tar
+      - python3-pip
+      - supervisor
+      - mariadb-server
+      - mariadb-client      
+    state: present
+
+- name: Enable and start service
+  systemd:
+    name: mysqld
+    enabled: true
+    state: started
+
+- name: Add Python MySQL support
+  apt:
+    name: python3-pymysql
+    install_recommends: false
+    state: present
+    
+- name: Show facts available on the system
+  ansible.builtin.debug:
+    var: ansible_facts
+
+- name: Initialize MySQL
+  block:             
+    - name: Change root user password on first run
+      community.mysql.mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        host_all: true
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+            
+    - name: Create "{{ mysql_db_user }}" user
+      mysql_user:
+        login_host: 'localhost'
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: "{{ mysql_db_user }}"
+        password: "{{ mysql_db_password }}"
+        host: "{{ mysql_remote_ip }}"
+        priv: '*.*:ALL,GRANT'
+        state: present
+        
+    - name: Create "{{ mysql_db_name }}" database
+      mysql_db:
+        login_user: "{{ mysql_db_user }}"
+        login_password: "{{ mysql_db_password }}"
+        name: "{{ mysql_db_name }}"
+        state: present
+    
+    - name: Enable remote login to mysql
+      lineinfile:
+         path: /etc/mysql/mariadb.conf.d/60-galera.cnf
+         regexp: '^bind-address'
+         line: 'bind-address = 0.0.0.0'
+         backup: yes
+      notify:
+         - Restart mysql
+
+    - name: Set the mysql_configured
+      set_fact: 
+        mysql_configured: "Done"
+        cacheable: true
+
+  when: ansible_facts['mysql_configured'] is not defined or ansible_facts['mysql_configured'] != "Done"
+
+
+- name: Creating a file with content
+  copy:
+    dest: "/home/ubuntu/config.txt"
+    content: |
+      {{ dbserver_private_ip }}
+
+- name: Copy supervisor conf
+  template:
+    src: photogallery.conf
+    dest: /etc/supervisor/conf.d/photogallery.conf
+
+- name: Copy project source
+  copy:
+    src: photogallery.tar.xz
+    dest: /home/ubuntu/
+  become_user: ubuntu
+
+- name: Extract project source
+  shell: tar -Jxvf /home/ubuntu/photogallery.tar.xz
+  become_user: ubuntu
+  args:
+    chdir: /home/ubuntu/
+
+- name: Install Python packages
+  pip:
+    requirements: "/home/ubuntu/photogallery/requirements.txt"
+  become: yes 
+  
+- name: Add supervisor program
+  community.general.supervisorctl:
+    name: photogallery
+    state: present    
+
+- name: Update and restart supervisor program
+  community.general.supervisorctl:
+    name: photogallery
+    state: restarted 
