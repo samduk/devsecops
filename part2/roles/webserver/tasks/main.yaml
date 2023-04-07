@@ -1,0 +1,60 @@
+---
+- name: Update apt
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+    force_apt_get: true
+
+- name: Install required packages
+  apt:
+    name: 
+      - tar
+      - python3-pip
+      - supervisor
+      - mariadb-client
+    state: present
+
+# - name: Set DB_HOSTNAME
+#   lineinfile:
+#     dest: /etc/environment
+#     state: present
+#     regexp: '^DB_HOSTNAME'
+#     line: 'DB_HOSTNAME={{ dbserver_private_ip }}'
+
+- name: Creating a file with content
+  copy:
+    dest: "/home/ubuntu/config.txt"
+    content: |
+      {{ dbserver_private_ip }}
+
+- name: Copy supervisor conf
+  template:
+    src: photogallery.conf
+    dest: /etc/supervisor/conf.d/photogallery.conf
+
+- name: Copy project source
+  copy:
+    src: photogallery.tar.xz
+    dest: /home/ubuntu/
+  become_user: ubuntu
+
+- name: Extract project source
+  shell: tar -Jxvf /home/ubuntu/photogallery.tar.xz
+  become_user: ubuntu
+  args:
+    chdir: /home/ubuntu/
+
+- name: pip install -r requirement.txt
+  pip:
+    requirements: "/home/ubuntu/photogallery/requirements.txt"
+  become: yes 
+  
+- name: Add supervisor program
+  community.general.supervisorctl:
+    name: photogallery
+    state: present    
+
+- name: Update and restart supervisor program
+  community.general.supervisorctl:
+    name: photogallery
+    state: restarted 

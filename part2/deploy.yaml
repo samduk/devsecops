@@ -1,0 +1,36 @@
+---
+#export ANSIBLE_CACHE_PLUGIN=jsonfile
+#export ANSIBLE_CACHE_PLUGIN_CONNECTION="~/ansiblefactcache"
+#rm ~/ansiblefactcache/dbserver
+#ansible-playbook -i inventory.ini deploy.yaml
+
+- name: Setup dbserver
+  hosts: dbserver
+  remote_user: ubuntu
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3    
+    allow_world_readable_tmpfiles: true
+    mysql_db_user: "photogallery"
+    mysql_db_password: "photogallery123"
+    mysql_root_password: "photogallery123"
+    mysql_db_name: "mydb"
+    mysql_remote_ip: "%"
+  roles:
+    - role: 'roles/dbserver'
+      tags: ['dbserver']      
+
+      
+- name: Setup webserver
+  hosts: webservers
+  remote_user: ubuntu
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3    
+    allow_world_readable_tmpfiles: true
+    dbserver_private_ip: "private_IP"
+  roles:
+    - role: 'roles/webserver'
+      tags: ['webserver']      
