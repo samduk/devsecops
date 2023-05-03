@@ -1,0 +1,63 @@
+---
+#export ANSIBLE_CACHE_PLUGIN=jsonfile
+#export ANSIBLE_CACHE_PLUGIN_CONNECTION="~/ansiblefactcache"
+#rm ~/ansiblefactcache/dbserver
+#ansible-playbook -i inventory.ini deploy.yaml
+
+
+- name: Setup dbserver
+  hosts: dbserver
+  remote_user: ubuntu
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3    
+    allow_world_readable_tmpfiles: true
+    mysql_db_user: "photogallery"
+    mysql_db_password: "photogallery123"
+    mysql_root_password: "photogallery123"
+    mysql_db_name: "mydb"
+    mysql_remote_ip: "%"
+  roles:
+    - role: 'roles/dbserver'
+      tags: ['dbserver']      
+
+      
+- name: Setup webserver
+  hosts: webservers
+  remote_user: ubuntu
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3    
+    allow_world_readable_tmpfiles: true
+    dbserver_private_ip: "172.31.42.133"
+  roles:
+    - role: 'roles/webserver'
+      tags: ['webserver']      
+  
+
+- name: Setup loadbalancer
+  hosts: loadbalancer
+  remote_user: ubuntu
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3    
+    allow_world_readable_tmpfiles: true
+  roles:
+    - role: 'roles/loadbalancer'
+      tags: ['loadbalancer']
+
+- name: Setting up ZAP server
+  hosts: zapservers
+  remote_user: ubuntu
+  gather_facts: no
+  become: yes
+  vars:
+    remote_user_name: ubuntu
+    apt_repo_data: "deb https://download.docker.com/linux/ubuntu jammy stable"
+    apt_gpg_key: https://download.docker.com/linux/ubuntu/gpg
+  roles:
+  - role: 'roles/zapserver'
+    tags: ['webserver']

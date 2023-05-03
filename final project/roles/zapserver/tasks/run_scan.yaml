@@ -1,0 +1,39 @@
+ 
+- name: Running OWASP ZAP Baseline Scan
+  hosts: zapservers
+  remote_user: ubuntu
+  gather_facts: no
+  become: yes
+  vars:
+    remote_user_name: ubuntu
+    owasp_zap_image_name: owasp/zap2docker-stable
+    website_url: "{{ website_url }}"
+    reports_location: /etc/zapdata
+    scan_name: owasp-zap-base-line-scan
+  tasks:
+  - name: Create a directory if it does not exist
+    ansible.builtin.file:
+      path: "{{ reports_location }}"
+      state: directory
+      owner: ubuntu
+      group: docker
+      mode: '0775'
+  - name: running owasp zap baseline scan container against "{{ website_url }}"
+    docker_container:
+      name: "{{ scan_name }}"
+      image: "{{ owasp_zap_image_name }}"
+      interactive: no
+      auto_remove: yes
+      state: started
+      volumes: "{{ reports_location }}:/zap/wrk:rw"
+      command: "zap-full-scan.py -t {{ website_url }} -r {{ scan_name }}_report.html"
+  - name: getting raw output of the scan
+    command: "docker logs -f {{ scan_name }}"
+    register: scan_output
+  - debug:
+      msg: "{{ scan_output }}"
+  - name: Storing in a path relative to the playbook
+    ansible.builtin.fetch:
+      src: "{{ reports_location }}/{{ scan_name }}_report.html"
+      dest: results/{{ inventory_hostname }}.html
+      flat: yes

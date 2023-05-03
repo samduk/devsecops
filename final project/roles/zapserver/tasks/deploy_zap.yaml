@@ -1,0 +1,13 @@
+ 
+- name: Setting up ZAP server
+  hosts: zapservers
+  remote_user: ubuntu
+  gather_facts: no
+  become: yes
+  vars:
+    remote_user_name: ubuntu
+    apt_repo_data: "deb https://download.docker.com/linux/ubuntu jammy stable"
+    apt_gpg_key: https://download.docker.com/linux/ubuntu/gpg
+  roles:
+  - role: 'roles/zapserver'
+    tags: ['webserver']

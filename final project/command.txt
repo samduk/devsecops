@@ -1,0 +1,1 @@
+ansible-playbook -i inventory.ini run_scan.yaml --extra-vars="website_url=http://18.191.216.134:5000/"

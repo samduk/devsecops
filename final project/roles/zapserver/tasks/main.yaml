@@ -1,0 +1,36 @@
+- name: adding docker gpg key
+  apt_key:
+    url: "{{ apt_gpg_key }}"
+    state: present
+- name: add docker repo
+  apt_repository:
+   repo: "{{ apt_repo_data }}"
+   state: present
+- name: installing docker-ce
+  apt:
+    name: docker-ce
+    state: latest
+    update_cache: yes
+- name: install python3-pip
+  apt:
+   name: python3-pip
+   state: present
+- name: install docker-py
+  pip:
+   name: docker
+
+
+- name: pulling owasp/zap2docker-stable container
+  docker_image:
+    name: owasp/zap2docker-stable
+    source: pull
+- name: running owasp zap container
+  docker_container:
+    name: owasp-zap
+    image: owasp/zap2docker-stable
+    interactive: yes
+    state: started
+    user: zap
+    command: zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true
+    ports:
+      - "8090:8090"

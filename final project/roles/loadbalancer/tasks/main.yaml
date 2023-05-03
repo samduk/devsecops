@@ -1,0 +1,38 @@
+---
+- name: Update apt
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+    force_apt_get: true
+
+- name: Install required packages
+  apt:
+    name: 
+      - nginx
+    state: present
+
+- name: Deactivate the default nginx from sites-available
+  file:
+    path: /etc/nginx/sites-available/default
+    state: absent
+
+- name: Deactivate the default nginx from sites-enabled
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Copy nginx load balancer conf
+  template:
+    src: server.conf
+    dest: /etc/nginx/sites-available/
+
+- name: Activate the load balancer
+  file: 
+    src: /etc/nginx/sites-available/server.conf
+    dest: /etc/nginx/sites-enabled/server.conf
+    state: link
+
+- name: Restart nginx.service
+  systemd:
+    state: restarted
+    name: nginx 

@@ -1,0 +1,10 @@
+- name: Stopping Docker
+  hosts: zapservers
+  remote_user: ubuntu
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Stop a container
+    community.docker.docker_container:
+      name: owasp-zap
+      state: stopped
